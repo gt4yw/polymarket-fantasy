@@ -23,9 +23,31 @@ function getPlayers() {
   return result.map(row => row.playerName);
 }
 
-// Helper function to validate username
+// Helper function to sanitize and validate username
+function sanitizeUsername(username) {
+  if (typeof username !== 'string') {
+    return null;
+  }
+  // Trim whitespace
+  const sanitized = username.trim();
+  // Limit length (usernames are 12 characters, but allow some buffer)
+  if (sanitized.length === 0 || sanitized.length > 50) {
+    return null;
+  }
+  // Only allow alphanumeric characters (matching the 12-char username format)
+  if (!/^[a-zA-Z0-9]+$/.test(sanitized)) {
+    return null;
+  }
+  return sanitized;
+}
+
+// Helper function to validate username exists in database
 function isValidUsername(username) {
-  const result = db.prepare("SELECT id FROM users WHERE username = ?").get(username);
+  const sanitized = sanitizeUsername(username);
+  if (!sanitized) {
+    return false;
+  }
+  const result = db.prepare("SELECT id FROM users WHERE username = ?").get(sanitized);
   return result !== undefined;
 }
 
@@ -139,24 +161,28 @@ app.get("/api/market-state", (req, res) => {
 app.get("/api/user-bets", (req, res) => {
   const { username } = req.query;
   
-  console.log("API /api/user-bets called with username:", username);
-  
   if (!username) {
     return res.json({ error: "Username is required" });
   }
   
-  // Validate username exists
-  if (!isValidUsername(username)) {
+  // Sanitize and validate username
+  const sanitizedUsername = sanitizeUsername(username);
+  if (!sanitizedUsername) {
+    return res.json({ error: "Invalid username format" });
+  }
+  
+  // Validate username exists in database
+  if (!isValidUsername(sanitizedUsername)) {
     return res.json({ error: "Invalid username" });
   }
   
-  // Get all bets for this username
+  // Get all bets for this username (using parameterized query - safe from SQL injection)
   const bets = db.prepare(`
     SELECT id, username, player, shares, cost, created_at
     FROM bets
     WHERE username = ?
     ORDER BY created_at DESC
-  `).all(username);
+  `).all(sanitizedUsername);
   
   // Get players list
   const players = getPlayers();
@@ -189,24 +215,28 @@ app.get("/api/user-bets", (req, res) => {
 app.post("/submit-bet", (req, res) => {
   const { username, player, shares } = req.body;
 
-  // Validate input
+  // Validate input exists
   if (!username || !player || !shares) {
     return res.redirect("/?error=missing_fields");
   }
 
-  // Validate username
-  if (!isValidUsername(username)) {
+  // Sanitize and validate username
+  const sanitizedUsername = sanitizeUsername(username);
+  if (!sanitizedUsername || !isValidUsername(sanitizedUsername)) {
     return res.redirect("/?error=invalid_username");
   }
 
-  const sharesNum = parseInt(shares);
-  if (isNaN(sharesNum) || sharesNum < 1 || sharesNum > 100) {
-    return res.redirect("/?error=invalid_shares");
+  // Validate and sanitize player (must be from whitelist)
+  const players = getPlayers();
+  const sanitizedPlayer = typeof player === 'string' ? player.trim() : null;
+  if (!sanitizedPlayer || !players.includes(sanitizedPlayer)) {
+    return res.redirect("/?error=invalid_player");
   }
 
-  const players = getPlayers();
-  if (!players.includes(player)) {
-    return res.redirect("/?error=invalid_player");
+  // Validate and parse shares (must be integer between 1-100)
+  const sharesNum = parseInt(shares, 10);
+  if (isNaN(sharesNum) || sharesNum < 1 || sharesNum > 100 || !Number.isInteger(sharesNum)) {
+    return res.redirect("/?error=invalid_shares");
   }
 
   // Get current market quantities
@@ -215,12 +245,12 @@ app.post("/submit-bet", (req, res) => {
   // Calculate LMSR cost for this trade
   const tradeCost = calculateTradeCost(quantities, player, sharesNum);
   
-  // Insert bet into database
+  // Insert bet into database (using parameterized query - safe from SQL injection)
   const insertBet = db.prepare(`
     INSERT INTO bets (username, player, shares, cost) 
     VALUES (?, ?, ?, ?)
   `);
-  insertBet.run(username, player, sharesNum, tradeCost);
+  insertBet.run(sanitizedUsername, sanitizedPlayer, sharesNum, tradeCost);
 
   // Redirect to home page to refresh
   res.redirect("/");
