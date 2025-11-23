@@ -40,6 +40,8 @@
                         Shares must be a number between 1 and 100.
                     <% } else if (query.error === 'invalid_player') { %>
                         Please select a valid player.
+                    <% } else if (query.error === 'invalid_username') { %>
+                        Please select a valid username.
                     <% } %>
                 </div>
             <% } %>

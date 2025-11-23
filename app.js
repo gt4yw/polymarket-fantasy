@@ -1,10 +1,7 @@
 const express = require("express");
-const fs = require("fs");
 const path = require("path");
+const db = require("./database");
 const app = express();
-
-// JSON file path for storing bets
-const BETS_FILE = path.join(__dirname, "bets.json");
 
 // Set up EJS templating
 app.set("view engine", "ejs");
@@ -17,15 +14,24 @@ app.use(express.static(path.join(__dirname, "public")));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-// Player list (from Python file)
-const players = ["Grant", "JB", "Connor", "David", "Bill", "Matt"];
-
 // LMSR constant (from Python file)
 const B = 50;
 
+// Helper function to get players from database
+function getPlayers() {
+  const result = db.prepare("SELECT playerName FROM players ORDER BY playerName").all();
+  return result.map(row => row.playerName);
+}
+
+// Helper function to validate username
+function isValidUsername(username) {
+  const result = db.prepare("SELECT id FROM users WHERE username = ?").get(username);
+  return result !== undefined;
+}
+
 // Helper function to get current market quantities (outstanding shares per player)
 function getMarketQuantities() {
-  const bets = readBets();
+  const players = getPlayers();
   const quantities = {};
   
   // Initialize all players with 0 shares
@@ -33,10 +39,16 @@ function getMarketQuantities() {
     quantities[player] = 0;
   });
   
-  // Sum up all shares for each player
-  bets.forEach((bet) => {
-    if (quantities.hasOwnProperty(bet.player)) {
-      quantities[bet.player] += bet.shares;
+  // Sum up all shares for each player from database
+  const result = db.prepare(`
+    SELECT player, SUM(shares) as total 
+    FROM bets 
+    GROUP BY player
+  `).all();
+  
+  result.forEach((row) => {
+    if (quantities.hasOwnProperty(row.player)) {
+      quantities[row.player] = row.total;
     }
   });
   
@@ -45,6 +57,7 @@ function getMarketQuantities() {
 
 // LMSR price calculation: price_i = e^(q_i/b) / sum(e^(q_j/b) for all j)
 function calculateLMSRPrices(quantities) {
+  const players = getPlayers();
   const prices = {};
   const expValues = {};
   let denominator = 0;
@@ -66,6 +79,7 @@ function calculateLMSRPrices(quantities) {
 
 // LMSR cost calculation: cost = b * ln(sum(e^(q_j/b) for all j))
 function calculateLMSRCost(quantities) {
+  const players = getPlayers();
   let sumExp = 0;
   
   players.forEach((player) => {
@@ -90,31 +104,10 @@ function calculateTradeCost(quantities, player, shares) {
   return costAfter - costBefore;
 }
 
-// Helper function to read bets from JSON file
-function readBets() {
-  try {
-    if (fs.existsSync(BETS_FILE)) {
-      const data = fs.readFileSync(BETS_FILE, "utf8");
-      return JSON.parse(data);
-    }
-  } catch (error) {
-    console.error("Error reading bets file:", error);
-  }
-  return [];
-}
-
-// Helper function to write bets to JSON file
-function writeBets(bets) {
-  try {
-    fs.writeFileSync(BETS_FILE, JSON.stringify(bets, null, 2), "utf8");
-  } catch (error) {
-    console.error("Error writing bets file:", error);
-    throw error;
-  }
-}
 
 // Helper function to get current odds using LMSR
 function getCurrentOdds() {
+  const players = getPlayers();
   const quantities = getMarketQuantities();
   const prices = calculateLMSRPrices(quantities);
   const odds = {};
@@ -129,6 +122,7 @@ function getCurrentOdds() {
 
 // GET route for home page
 app.get("/", (req, res) => {
+  const players = getPlayers();
   const odds = getCurrentOdds();
   const quantities = getMarketQuantities();
   res.render("index", { players, odds, quantities, query: req.query });
@@ -136,6 +130,7 @@ app.get("/", (req, res) => {
 
 // API endpoint to get current market state (quantities)
 app.get("/api/market-state", (req, res) => {
+  const players = getPlayers();
   const quantities = getMarketQuantities();
   res.json({ quantities, players, b: B });
 });
@@ -149,37 +144,33 @@ app.post("/submit-bet", (req, res) => {
     return res.redirect("/?error=missing_fields");
   }
 
+  // Validate username
+  if (!isValidUsername(username)) {
+    return res.redirect("/?error=invalid_username");
+  }
+
   const sharesNum = parseInt(shares);
   if (isNaN(sharesNum) || sharesNum < 1 || sharesNum > 100) {
     return res.redirect("/?error=invalid_shares");
   }
 
+  const players = getPlayers();
   if (!players.includes(player)) {
     return res.redirect("/?error=invalid_player");
   }
 
-  // Read existing bets
-  const bets = readBets();
-  
   // Get current market quantities
   const quantities = getMarketQuantities();
   
   // Calculate LMSR cost for this trade
   const tradeCost = calculateTradeCost(quantities, player, sharesNum);
   
-  // Create new bet object
-  const newBet = {
-    id: bets.length > 0 ? Math.max(...bets.map(b => b.id)) + 1 : 1,
-    username: username,
-    player: player,
-    shares: sharesNum,
-    cost: tradeCost,
-    created_at: new Date().toISOString()
-  };
-  
-  // Add new bet and write to file
-  bets.push(newBet);
-  writeBets(bets);
+  // Insert bet into database
+  const insertBet = db.prepare(`
+    INSERT INTO bets (username, player, shares, cost) 
+    VALUES (?, ?, ?, ?)
+  `);
+  insertBet.run(username, player, sharesNum, tradeCost);
 
   // Redirect to home page to refresh
   res.redirect("/");

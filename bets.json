@@ -3,14 +3,71 @@
     "id": 1,
     "username": "gt",
     "player": "JB",
-    "shares": 2,
+    "shares": 0,
     "created_at": "2025-11-23T17:59:35.620Z"
   },
   {
     "id": 2,
-    "username": "david",
+    "username": "ggt",
+    "player": "Grant",
+    "shares": 50,
+    "cost": 12.591615447890135,
+    "created_at": "2025-11-23T18:41:47.793Z"
+  },
+  {
+    "id": 3,
+    "username": "ggt",
+    "player": "JB",
+    "shares": 30,
+    "cost": 5.060807027877914,
+    "created_at": "2025-11-23T18:42:19.126Z"
+  },
+  {
+    "id": 4,
+    "username": "ggt",
     "player": "Connor",
-    "shares": 20,
-    "created_at": "2025-11-23T18:00:08.265Z"
+    "shares": 15,
+    "cost": 2.007415665329475,
+    "created_at": "2025-11-23T18:42:48.622Z"
+  },
+  {
+    "id": 5,
+    "username": "addfdsa",
+    "player": "Connor",
+    "shares": 1,
+    "cost": 0.15312950903766875,
+    "created_at": "2025-11-23T18:49:31.456Z"
+  },
+  {
+    "id": 6,
+    "username": "ffdsafda",
+    "player": "David",
+    "shares": 100,
+    "cost": 27.013213627580683,
+    "created_at": "2025-11-23T18:49:40.659Z"
+  },
+  {
+    "id": 7,
+    "username": "fasdfasd",
+    "player": "Connor",
+    "shares": 100,
+    "cost": 22.70708145110021,
+    "created_at": "2025-11-23T18:49:48.482Z"
+  },
+  {
+    "id": 8,
+    "username": "fddfa",
+    "player": "Connor",
+    "shares": 100,
+    "cost": 65.3768782242218,
+    "created_at": "2025-11-23T18:50:03.022Z"
+  },
+  {
+    "id": 9,
+    "username": "5eDTYGefddTF",
+    "player": "David",
+    "shares": 100,
+    "cost": 21.25477179601836,
+    "created_at": "2025-11-23T18:51:34.534Z"
   }
 ]
