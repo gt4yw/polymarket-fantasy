@@ -71,11 +71,8 @@
         </div>
     </div>
 
+    <script src="/js/lmsr.js"></script>
     <script>
-        // Simple cost calculation: shares * base_price
-        // Base price is $0.10 per share (can be adjusted)
-        const BASE_PRICE = 0.10;
-        
         const usernameInput = document.getElementById('username');
         const playerSelect = document.getElementById('player');
         const sharesInput = document.getElementById('shares');
@@ -83,8 +80,11 @@
         
         function calculateCost() {
             const shares = parseInt(sharesInput.value) || 0;
-            if (shares > 0 && shares <= 100 && playerSelect.value) {
-                const cost = shares * BASE_PRICE;
+            const player = playerSelect.value;
+            
+            if (shares > 0 && shares <= 100 && player) {
+                // Use LMSR to calculate cost
+                const cost = calculateTradeCost(player, shares);
                 costDisplay.textContent = '$' + cost.toFixed(2);
             } else {
                 costDisplay.textContent = '$0.00';
@@ -95,8 +95,13 @@
         sharesInput.addEventListener('input', calculateCost);
         playerSelect.addEventListener('change', calculateCost);
         
-        // Initial calculation
-        calculateCost();
+        // Set up callback for when market state is ready
+        if (typeof setMarketStateReadyCallback !== 'undefined') {
+            setMarketStateReadyCallback(calculateCost);
+        } else {
+            // Fallback: try after a short delay
+            setTimeout(calculateCost, 200);
+        }
     </script>
 </body>
 </html>

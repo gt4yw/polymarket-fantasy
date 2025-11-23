@@ -20,6 +20,76 @@ app.use(express.json());
 // Player list (from Python file)
 const players = ["Grant", "JB", "Connor", "David", "Bill", "Matt"];
 
+// LMSR constant (from Python file)
+const B = 50;
+
+// Helper function to get current market quantities (outstanding shares per player)
+function getMarketQuantities() {
+  const bets = readBets();
+  const quantities = {};
+  
+  // Initialize all players with 0 shares
+  players.forEach((player) => {
+    quantities[player] = 0;
+  });
+  
+  // Sum up all shares for each player
+  bets.forEach((bet) => {
+    if (quantities.hasOwnProperty(bet.player)) {
+      quantities[bet.player] += bet.shares;
+    }
+  });
+  
+  return quantities;
+}
+
+// LMSR price calculation: price_i = e^(q_i/b) / sum(e^(q_j/b) for all j)
+function calculateLMSRPrices(quantities) {
+  const prices = {};
+  const expValues = {};
+  let denominator = 0;
+  
+  // Calculate exp(q_i/b) for each player
+  players.forEach((player) => {
+    const q = quantities[player] || 0;
+    expValues[player] = Math.exp(q / B);
+    denominator += expValues[player];
+  });
+  
+  // Calculate price for each player
+  players.forEach((player) => {
+    prices[player] = expValues[player] / denominator;
+  });
+  
+  return prices;
+}
+
+// LMSR cost calculation: cost = b * ln(sum(e^(q_j/b) for all j))
+function calculateLMSRCost(quantities) {
+  let sumExp = 0;
+  
+  players.forEach((player) => {
+    const q = quantities[player] || 0;
+    sumExp += Math.exp(q / B);
+  });
+  
+  return B * Math.log(sumExp);
+}
+
+// Calculate cost of a trade using LMSR
+function calculateTradeCost(quantities, player, shares) {
+  // Calculate cost before trade
+  const costBefore = calculateLMSRCost(quantities);
+  
+  // Calculate cost after trade
+  const quantitiesAfter = { ...quantities };
+  quantitiesAfter[player] = (quantitiesAfter[player] || 0) + shares;
+  const costAfter = calculateLMSRCost(quantitiesAfter);
+  
+  // Trade cost is the difference
+  return costAfter - costBefore;
+}
+
 // Helper function to read bets from JSON file
 function readBets() {
   try {
@@ -43,21 +113,15 @@ function writeBets(bets) {
   }
 }
 
-// Helper function to get current odds (simple calculation based on bets)
+// Helper function to get current odds using LMSR
 function getCurrentOdds() {
-  const bets = readBets();
+  const quantities = getMarketQuantities();
+  const prices = calculateLMSRPrices(quantities);
   const odds = {};
   
-  // Calculate total shares
-  const total = bets.reduce((sum, bet) => sum + bet.shares, 0);
-
+  // Convert prices to percentages
   players.forEach((player) => {
-    // Calculate total shares for this player
-    const playerTotal = bets
-      .filter((bet) => bet.player === player)
-      .reduce((sum, bet) => sum + bet.shares, 0);
-    // Simple odds: percentage of total shares
-    odds[player] = total > 0 ? ((playerTotal / total) * 100).toFixed(2) : "0.00";
+    odds[player] = (prices[player] * 100).toFixed(2);
   });
 
   return odds;
@@ -66,7 +130,14 @@ function getCurrentOdds() {
 // GET route for home page
 app.get("/", (req, res) => {
   const odds = getCurrentOdds();
-  res.render("index", { players, odds, query: req.query });
+  const quantities = getMarketQuantities();
+  res.render("index", { players, odds, quantities, query: req.query });
+});
+
+// API endpoint to get current market state (quantities)
+app.get("/api/market-state", (req, res) => {
+  const quantities = getMarketQuantities();
+  res.json({ quantities, players, b: B });
 });
 
 // POST route for form submission
@@ -90,12 +161,19 @@ app.post("/submit-bet", (req, res) => {
   // Read existing bets
   const bets = readBets();
   
+  // Get current market quantities
+  const quantities = getMarketQuantities();
+  
+  // Calculate LMSR cost for this trade
+  const tradeCost = calculateTradeCost(quantities, player, sharesNum);
+  
   // Create new bet object
   const newBet = {
     id: bets.length > 0 ? Math.max(...bets.map(b => b.id)) + 1 : 1,
     username: username,
     player: player,
     shares: sharesNum,
+    cost: tradeCost,
     created_at: new Date().toISOString()
   };
   
