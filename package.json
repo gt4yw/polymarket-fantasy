@@ -4,7 +4,11 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "start": "node app.js",
     "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   },
   "repository": {
     "type": "git",
@@ -20,6 +24,7 @@
   "dependencies": {
     "express": "^5.1.0",
     "ejs": "^3.1.10",
-    "better-sqlite3": "^11.0.0"
+    "pg": "^8.11.3",
+    "dotenv": "^16.4.5"
   }
 }
