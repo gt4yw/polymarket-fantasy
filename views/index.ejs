@@ -73,6 +73,28 @@
         </div>
     </div>
 
+    <div class="prior-bets-container">
+        <h2>View Prior Bets</h2>
+        <div class="prior-bets-form">
+            <div class="form-group">
+                <label for="priorBetsUsername">Username:</label>
+                <input type="text" id="priorBetsUsername" placeholder="Enter username">
+            </div>
+            <button type="button" id="viewPriorBetsBtn">See Prior Bets</button>
+        </div>
+        <div id="priorBetsResults" style="display: none;">
+            <h3>Bet History</h3>
+            <table id="priorBetsTable">
+                <thead id="priorBetsTableHead">
+                </thead>
+                <tbody id="priorBetsTableBody">
+                </tbody>
+                <tfoot id="priorBetsTableFooter">
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
     <script src="/js/lmsr.js"></script>
     <script>
         const usernameInput = document.getElementById('username');
@@ -80,13 +102,13 @@
         const sharesInput = document.getElementById('shares');
         const costDisplay = document.getElementById('costDisplay');
         
-        function calculateCost() {
+        async function calculateCost() {
             const shares = parseInt(sharesInput.value) || 0;
             const player = playerSelect.value;
             
             if (shares > 0 && shares <= 100 && player) {
                 // Use LMSR to calculate cost
-                const cost = calculateTradeCost(player, shares);
+                const cost = await calculateTradeCost(player, shares);
                 costDisplay.textContent = '$' + cost.toFixed(2);
             } else {
                 costDisplay.textContent = '$0.00';
@@ -104,6 +126,131 @@
             // Fallback: try after a short delay
             setTimeout(calculateCost, 200);
         }
+
+        // Prior bets functionality
+        const priorBetsUsername = document.getElementById('priorBetsUsername');
+        const viewPriorBetsBtn = document.getElementById('viewPriorBetsBtn');
+        const priorBetsResults = document.getElementById('priorBetsResults');
+        const priorBetsTableHead = document.getElementById('priorBetsTableHead');
+        const priorBetsTableBody = document.getElementById('priorBetsTableBody');
+        const priorBetsTableFooter = document.getElementById('priorBetsTableFooter');
+
+        async function loadPriorBets() {
+            const username = priorBetsUsername.value.trim();
+            
+            if (!username) {
+                alert('Please enter a username');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/user-bets?username=${encodeURIComponent(username)}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+
+                if (data.error) {
+                    alert(data.error);
+                    priorBetsResults.style.display = 'none';
+                    return;
+                }
+
+                // Clear previous results
+                priorBetsTableHead.innerHTML = '';
+                priorBetsTableBody.innerHTML = '';
+                priorBetsTableFooter.innerHTML = '';
+
+                if (data.bets.length === 0) {
+                    const colCount = (data.players ? data.players.length : 6) + 2; // players + Cost + Date
+                    priorBetsTableBody.innerHTML = `<tr><td colspan="${colCount}" style="text-align: center; padding: 20px;">No bets found for this username</td></tr>`;
+                    priorBetsTableFooter.innerHTML = '';
+                } else {
+                    const players = data.players || [];
+                    
+                    // Build table header
+                    const headerRow = document.createElement('tr');
+                    players.forEach(player => {
+                        const th = document.createElement('th');
+                        th.textContent = player;
+                        headerRow.appendChild(th);
+                    });
+                    const costHeader = document.createElement('th');
+                    costHeader.textContent = 'Cost';
+                    headerRow.appendChild(costHeader);
+                    const dateHeader = document.createElement('th');
+                    dateHeader.textContent = 'Date';
+                    headerRow.appendChild(dateHeader);
+                    priorBetsTableHead.appendChild(headerRow);
+                    
+                    // Display bets
+                    data.bets.forEach(bet => {
+                        const row = document.createElement('tr');
+                        const date = new Date(bet.created_at);
+                        const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+                        const cost = parseFloat(bet.cost) || 0;
+                        
+                        // Add a cell for each player
+                        players.forEach(player => {
+                            const td = document.createElement('td');
+                            if (bet.player === player) {
+                                td.textContent = bet.shares;
+                            } else {
+                                td.textContent = '';
+                            }
+                            row.appendChild(td);
+                        });
+                        
+                        // Add cost and date columns
+                        const costCell = document.createElement('td');
+                        costCell.textContent = '$' + cost.toFixed(2);
+                        row.appendChild(costCell);
+                        
+                        const dateCell = document.createElement('td');
+                        dateCell.textContent = dateStr;
+                        row.appendChild(dateCell);
+                        
+                        priorBetsTableBody.appendChild(row);
+                    });
+
+                    // Display summary row
+                    const footerRow = document.createElement('tr');
+                    players.forEach(player => {
+                        const td = document.createElement('td');
+                        const total = data.totals.playerTotals && data.totals.playerTotals[player] ? data.totals.playerTotals[player] : 0;
+                        td.innerHTML = '<strong>' + total + '</strong>';
+                        footerRow.appendChild(td);
+                    });
+                    
+                    const totalCostCell = document.createElement('td');
+                    totalCostCell.innerHTML = '<strong>$' + data.totals.totalCost.toFixed(2) + '</strong>';
+                    footerRow.appendChild(totalCostCell);
+                    
+                    const emptyCell = document.createElement('td');
+                    emptyCell.innerHTML = '<strong>Total</strong>';
+                    footerRow.appendChild(emptyCell);
+                    
+                    priorBetsTableFooter.appendChild(footerRow);
+                }
+
+                priorBetsResults.style.display = 'block';
+            } catch (error) {
+                console.error('Error loading prior bets:', error);
+                alert('Error loading prior bets: ' + error.message);
+                priorBetsResults.style.display = 'none';
+            }
+        }
+
+        viewPriorBetsBtn.addEventListener('click', loadPriorBets);
+        
+        // Allow Enter key to trigger the search
+        priorBetsUsername.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                loadPriorBets();
+            }
+        });
     </script>
 </body>
 </html>

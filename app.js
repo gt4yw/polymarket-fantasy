@@ -135,6 +135,56 @@ app.get("/api/market-state", (req, res) => {
   res.json({ quantities, players, b: B });
 });
 
+// API endpoint to get bets by username
+app.get("/api/user-bets", (req, res) => {
+  const { username } = req.query;
+  
+  console.log("API /api/user-bets called with username:", username);
+  
+  if (!username) {
+    return res.json({ error: "Username is required" });
+  }
+  
+  // Validate username exists
+  if (!isValidUsername(username)) {
+    return res.json({ error: "Invalid username" });
+  }
+  
+  // Get all bets for this username
+  const bets = db.prepare(`
+    SELECT id, username, player, shares, cost, created_at
+    FROM bets
+    WHERE username = ?
+    ORDER BY created_at DESC
+  `).all(username);
+  
+  // Get players list
+  const players = getPlayers();
+  
+  // Initialize player totals
+  const playerTotals = {};
+  players.forEach(player => {
+    playerTotals[player] = 0;
+  });
+  
+  // Calculate totals per player and overall
+  const totals = bets.reduce((acc, bet) => {
+    acc.totalShares += bet.shares || 0;
+    acc.totalCost += parseFloat(bet.cost) || 0;
+    
+    // Track totals per player
+    if (playerTotals.hasOwnProperty(bet.player)) {
+      playerTotals[bet.player] += bet.shares || 0;
+    }
+    
+    return acc;
+  }, { totalShares: 0, totalCost: 0 });
+  
+  totals.playerTotals = playerTotals;
+  
+  res.json({ bets, totals, players });
+});
+
 // POST route for form submission
 app.post("/submit-bet", (req, res) => {
   const { username, player, shares } = req.body;

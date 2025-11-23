@@ -114,4 +114,43 @@ button:hover {
     color: #666;
     font-size: 14px;
 }
+.prior-bets-container {
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-top: 30px;
+}
+.prior-bets-form {
+    display: flex;
+    gap: 15px;
+    align-items: flex-end;
+    margin-bottom: 20px;
+}
+.prior-bets-form .form-group {
+    flex: 1;
+    margin-bottom: 0;
+}
+.prior-bets-form button {
+    width: auto;
+    margin-top: 0;
+    padding: 10px 20px;
+}
+#priorBetsResults {
+    margin-top: 20px;
+}
+#priorBetsResults h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #333;
+}
+#priorBetsTable tfoot {
+    font-weight: bold;
+    background-color: #f0f0f0;
+}
+#priorBetsTable tfoot td {
+    border-top: 2px solid #4CAF50;
+    padding-top: 15px;
+    padding-bottom: 15px;
+}
 
