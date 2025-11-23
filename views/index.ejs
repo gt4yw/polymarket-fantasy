@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Polymarket Fantasy - Home</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <h1>McCatherter's Yard Restoration PAC</h1>
+    
+    <div class="odds-table-container">
+        <h2>Current Odds</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Team</th>
+                    <th>Current Odds (%)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% players.forEach(player => { %>
+                <tr>
+                    <td><%= player %></td>
+                    <td><%= odds[player] %>%</td>
+                </tr>
+                <% }); %>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="form-container">
+        <div class="form-section">
+            <h2>Place a Bet</h2>
+            <% if (typeof query !== 'undefined' && query.error) { %>
+                <div class="error">
+                    <% if (query.error === 'missing_fields') { %>
+                        Please fill in all fields.
+                    <% } else if (query.error === 'invalid_shares') { %>
+                        Shares must be a number between 1 and 100.
+                    <% } else if (query.error === 'invalid_player') { %>
+                        Please select a valid player.
+                    <% } %>
+                </div>
+            <% } %>
+            <form id="betForm" method="POST" action="/submit-bet">
+                <div class="form-group">
+                    <label for="username">Username:</label>
+                    <input type="text" id="username" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="player">Player:</label>
+                    <select id="player" name="player" required>
+                        <option value="">Select a player</option>
+                        <% players.forEach(player => { %>
+                        <option value="<%= player %>"><%= player %></option>
+                        <% }); %>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="shares">Number of Shares (1-100):</label>
+                    <input type="number" id="shares" name="shares" min="1" max="100" required>
+                </div>
+                <button type="submit">Submit Bet</button>
+            </form>
+        </div>
+        <div class="cost-section">
+            <h3>Cost</h3>
+            <div class="cost-value" id="costDisplay">$0.00</div>
+            <p>Cost will be calculated based on your selection.</p>
+        </div>
+    </div>
+
+    <script>
+        // Simple cost calculation: shares * base_price
+        // Base price is $0.10 per share (can be adjusted)
+        const BASE_PRICE = 0.10;
+        
+        const usernameInput = document.getElementById('username');
+        const playerSelect = document.getElementById('player');
+        const sharesInput = document.getElementById('shares');
+        const costDisplay = document.getElementById('costDisplay');
+        
+        function calculateCost() {
+            const shares = parseInt(sharesInput.value) || 0;
+            if (shares > 0 && shares <= 100 && playerSelect.value) {
+                const cost = shares * BASE_PRICE;
+                costDisplay.textContent = '$' + cost.toFixed(2);
+            } else {
+                costDisplay.textContent = '$0.00';
+            }
+        }
+        
+        // Update cost when shares or player changes
+        sharesInput.addEventListener('input', calculateCost);
+        playerSelect.addEventListener('change', calculateCost);
+        
+        // Initial calculation
+        calculateCost();
+    </script>
+</body>
+</html>
+

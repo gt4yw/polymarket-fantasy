@@ -1,0 +1,16 @@
+[
+  {
+    "id": 1,
+    "username": "gt",
+    "player": "JB",
+    "shares": 2,
+    "created_at": "2025-11-23T17:59:35.620Z"
+  },
+  {
+    "id": 2,
+    "username": "david",
+    "player": "Connor",
+    "shares": 20,
+    "created_at": "2025-11-23T18:00:08.265Z"
+  }
+]

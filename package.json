@@ -1,0 +1,24 @@
+{
+  "name": "polymarket-fantasy",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gt4yw/polymarket-fantasy.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/gt4yw/polymarket-fantasy/issues"
+  },
+  "homepage": "https://github.com/gt4yw/polymarket-fantasy#readme",
+  "dependencies": {
+    "express": "^5.1.0",
+    "ejs": "^3.1.10"
+  }
+}
