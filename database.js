@@ -3,13 +3,22 @@ require('dotenv').config();
 
 const { Pool } = require("pg");
 
-// Get database URL from environment variable (Railway provides DATABASE_URL)
-// For local development, set this in a .env file
-const DATABASE_URL = process.env.DATABASE_URL;
+// Get database URL from environment variable
+// Railway provides DATABASE_URL when PostgreSQL service is added
+// Also check for alternative names Railway might use
+const DATABASE_URL = process.env.DATABASE_URL || 
+                     process.env.POSTGRES_URL || 
+                     process.env.DATABASE_PRIVATE_URL ||
+                     process.env.POSTGRES_PRIVATE_URL;
 
 if (!DATABASE_URL) {
   console.error("DATABASE_URL environment variable is not set");
-  console.error("Please set DATABASE_URL in your .env file or environment variables");
+  console.error("Please ensure:");
+  console.error("1. A PostgreSQL service is added to your Railway project");
+  console.error("2. The PostgreSQL service is linked to your app service");
+  console.error("3. Or set DATABASE_URL manually in Railway environment variables");
+  console.error("");
+  console.error("For local development, set DATABASE_URL in your .env file");
   console.error("Example: DATABASE_URL=postgresql://username:password@localhost:5432/database_name");
   console.error("See .env.example for more details");
   process.exit(1);
